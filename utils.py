@@ -4,16 +4,16 @@ from astropy.modeling import models
 from astropy.modeling import functional_models
 from astropy import units as u
 
-wavelengths     = np.arange(400, 800)*u.nm
-FWHM            = 0.5
-lambda_Na       = 589.0*u.nm
-lambda_Mg       = 518.3*u.nm
-width           = 1000
-height          = 1500
+wavelengths = np.arange(400, 800)*u.nm
+FWHM        = 0.5
+lambda_Na   = 589.0*u.nm
+lambda_Mg   = 518.3*u.nm
+width       = 1000
+height      = 1500
 
 dir='./dataset/'
 
-#%% Draw stars
+#%% Draw the image
 
 def add_background(image_3d):
     '''
@@ -82,8 +82,6 @@ def add_meteor(image_3d, coord_meteors, amp_meteors, T_meteors, dir_meteors, len
     # plt.imshow(meteor)
     # plt.colorbar()
     # plt.show()
-
-
     # TODO: return the bounding box
     return image_3d
 
@@ -126,6 +124,32 @@ def augmentation(image_rgb):
     TODO: use `imgaug`
     '''
     return image_rgb
+
+def generate_image(coord_stars, amp_stars, T_stars, coord_meteor, amp_meteor, T_meteor, 
+                    angle_meteor, length_meteor, angle_slit, length_slit): 
+    '''
+    function to generate the image. 
+    Args: 
+        The position of all the stars, the meteor, etc.: 
+        coords_stars    [N, 2]      the coordinates of stars plotted in the diagram. Will also give the number of stars
+        TODO...
+        angle_slit      [0, 2pi)
+        angle_meteor    [0, 2pi)
+        length_meteor   int         how long the meteor is 
+        length_slit     int         how long the track of spectrum is
+    Return: 
+        one RGB image
+    '''
+    image_3d = np.zeros([width, height, 400], dtype=np.uint16)           # 0-65536, valid in 0-256 TODO: change to float16? 
+    image_3d = add_background(image_3d)
+    image_3d = add_stars(image_3d, coord_stars, amp_stars, T_stars)
+    image_3d = add_meteor(image_3d, coord_meteor, amp_meteor, T_meteor, angle_meteor, length_meteor)
+    image_rgb = capture(image_3d, angle_slit, length_slit)
+    image_rgb = augmentation(image_rgb)
+    # clip the image
+    image_rgb = np.clip(image_rgb, 0, 255)# including 0 and 255
+    # image_rgb = image_rgb.astype('uint8')
+    return image_rgb #image_3d[:,:,0]
 
 #%% Annotate labels 
 
@@ -173,6 +197,15 @@ def blank_label():
                 ]
             }
         ]
+    }
+
+def annotate_image(filename, image_id): 
+    return {
+        'license': 1,
+        'file_name': filename,
+        'height': width,
+        'width': height,
+        'id': image_id
     }
 
 def annotate_meteor(x_meteor, y_meteor, angle_slit, length_slit, angle_meteor, length_meteor, anno_id, image_id): 
