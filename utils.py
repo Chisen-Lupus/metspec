@@ -19,8 +19,9 @@ def add_background(image_3d):
     '''
     '''
     # TODO: mutate the background
-    for i in range(400):
-        image_3d[:,:,i] += int(30-0.06*i)
+    spectrum = 30-0.06*np.arange(400)
+    background = (np.ones([width, height, 400])*spectrum).astype(np.uint16)
+    image_3d += background
     return image_3d
 
 def add_stars(image_3d, coord_stars, amp_stars, T_stars): 
@@ -94,13 +95,14 @@ def add_landscape(image_3d):
 def capture(image_3d, direction, length): 
     '''
     '''
+    x_grid, y_grid, spec_grid = np.ogrid[:width, :height, :400]
     dx = np.cos(direction)
     dy = np.sin(direction)
-    for i in range(400): 
-        # print(i, int(dx*length*i/400))
-        image_3d[:,:,i] = np.roll(image_3d[:,:,i], axis=0, shift=int(dx*length*i/400))
-        image_3d[:,:,i] = np.roll(image_3d[:,:,i], axis=1, shift=int(dy*length*i/400))
-    image_rgb = np.zeros([width, height, 3], dtype=np.uint16)
+    x_offsets = x_grid - (np.arange(400)*dx*length/400)[np.newaxis, np.newaxis, :].astype(np.int16)
+    y_offsets = y_grid - (np.arange(400)*dy*length/400)[np.newaxis, np.newaxis, :].astype(np.int16)
+    x_offsets[x_offsets>=width] -= width
+    y_offsets[y_offsets>=height] -= height
+    image_3d = image_3d[x_offsets, y_offsets, spec_grid]
     # RGB filter
     # TODO: adjust the RGB curve of camera
     # TODO: adjust the true slit distortion
@@ -112,6 +114,7 @@ def capture(image_3d, direction, length):
     filter_b = gaussian_b(wavelengths.value)
     filter_r[200:400] = 1-np.arange(200)**2/200**2
     # generate RGB components
+    image_rgb = np.zeros([width, height, 3], dtype=np.uint16)
     image_rgb[:, :, 0] = np.average(image_3d*filter_r, axis=2)
     image_rgb[:, :, 1] = np.average(image_3d*filter_g, axis=2)
     image_rgb[:, :, 2] = np.average(image_3d*filter_b, axis=2)
@@ -141,9 +144,13 @@ def generate_image(coord_stars, amp_stars, T_stars, coord_meteor, amp_meteor, T_
         one RGB image
     '''
     image_3d = np.zeros([width, height, 400], dtype=np.uint16)           # 0-65536, valid in 0-256 TODO: change to float16? 
+    # print('  add_background')
     image_3d = add_background(image_3d)
+    # print('  add_stars')
     image_3d = add_stars(image_3d, coord_stars, amp_stars, T_stars)
+    # print('  add_meteor')
     image_3d = add_meteor(image_3d, coord_meteor, amp_meteor, T_meteor, angle_meteor, length_meteor)
+    # print('  capture')
     image_rgb = capture(image_3d, angle_slit, length_slit)
     image_rgb = augmentation(image_rgb)
     # clip the image
@@ -295,7 +302,7 @@ def annotate_star(x, y, angle_slit, length_slit, anno_id, image_id):
     else: 
         return None
 
-
+#%% display result
 
 
 
