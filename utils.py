@@ -265,12 +265,12 @@ def annotate_meteor(x_meteor, y_meteor, angle_slit, length_slit, angle_meteor, l
     bbox_y2     = min(height, bbox_y2)
     bbox_w      = bbox_x2 - bbox_x1
     bbox_h      = bbox_y2 - bbox_y1
-    start_Na_x  = int(x_meteor + np.cos(angle_slit)*length_slit*(lambda_Na.value-400)/400)
-    start_Na_y  = int(y_meteor + np.sin(angle_slit)*length_slit*(lambda_Na.value-400)/400)
+    start_Na_x  = int(x_meteor + np.cos(angle_slit)*length_slit*((lambda_Na.value-400)/400)**0.25)
+    start_Na_y  = int(y_meteor + np.sin(angle_slit)*length_slit*((lambda_Na.value-400)/400)**0.25)
     end_Na_x    = int(start_Na_x + np.cos(angle_meteor)*length_meteor)
     end_Na_y    = int(start_Na_y + np.sin(angle_meteor)*length_meteor)
-    start_Mg_x  = int(x_meteor + np.cos(angle_slit)*length_slit*(lambda_Mg.value-400)/400)
-    start_Mg_y  = int(y_meteor + np.sin(angle_slit)*length_slit*(lambda_Mg.value-400)/400)
+    start_Mg_x  = int(x_meteor + np.cos(angle_slit)*length_slit*((lambda_Mg.value-400)/400)**0.25)
+    start_Mg_y  = int(y_meteor + np.sin(angle_slit)*length_slit*((lambda_Mg.value-400)/400)**0.25)
     end_Mg_x    = int(start_Mg_x + np.cos(angle_meteor)*length_meteor)
     end_Mg_y    = int(start_Mg_y + np.sin(angle_meteor)*length_meteor)
     # check if the **keypoint** is valid for labelling by **clipping the value out of bound**
