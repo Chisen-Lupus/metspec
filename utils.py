@@ -301,6 +301,26 @@ def annotate_star(x, y, angle_slit, length_slit, anno_id, image_id):
         }
     else: 
         return None
+    
+#%% photo normalization 
+
+def norm_linear(im): 
+    result = (im - np.median(im))# + np.std(im))
+    result = result/np.max(result)*2*256
+    result = np.clip(result, 0, 255)
+    result = result.astype(np.uint8)
+    return result
+
+
+
+
+
+
+
+
+
+
+
 
 #%% display result
 
