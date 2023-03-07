@@ -18,9 +18,13 @@ dir='./dataset/'
 def add_background(image_3d):
     '''
     '''
-    # TODO: mutate the background
-    spectrum = 30-0.06*np.arange(400)
-    background = (np.ones([width, height, 400])*spectrum).astype(np.uint16)
+    # NOTE: We use a linear function to simulate the background spectrum
+    skymodel = functional_models.Gaussian2D(x_mean=width//2, y_mean=height//2, 
+                                            x_stddev=width//2, y_stddev=height//2)
+    XX, YY = np.meshgrid(np.arange(width), np.arange(height))
+    skylight = np.repeat(skymodel(XX, YY)[:,:,np.newaxis], 400, axis=2).transpose(1, 0, 2)
+    spectrum = 50 + 0.2*np.arange(400)
+    background = (skylight*spectrum).astype(np.uint16)
     image_3d += background
     return image_3d
 
@@ -52,8 +56,8 @@ def add_meteor(image_3d, coord_meteors, amp_meteors, T_meteors, dir_meteors, len
         BB = models.BlackBody(temperature=T_meteor)
         meteor_x = BB(wavelengths).value*amp_meteor
         # spectrum - emission line
-        amp_Na = amp_meteor*2e-6
-        amp_Mg = amp_meteor*1e-6
+        amp_Na = amp_meteor*1e-5
+        amp_Mg = amp_meteor*5e-6
         emission_Na = functional_models.Gaussian1D(mean=lambda_Na.value, stddev=FWHM)
         emission_Mg = functional_models.Gaussian1D(mean=lambda_Mg.value, stddev=FWHM)
         meteor_x += emission_Na(wavelengths.value)*amp_Na
@@ -61,8 +65,8 @@ def add_meteor(image_3d, coord_meteors, amp_meteors, T_meteors, dir_meteors, len
         # trajectory
         meteor_y = np.arange(length_meteor)
         amplitude = 1e3
-        # TODO: use true trajectory
-        meteor_y = (meteor_y*10/length_meteor)**(0.1) - meteor_y/length_meteor
+        # NOTE: We simply use polynomial as the star's light curve
+        meteor_y = (meteor_y*20/length_meteor)**(0.05) - meteor_y/length_meteor
         meteor_y = meteor_y*amplitude
         meteor = np.outer(meteor_y, meteor_x)
         # draw meteor
@@ -94,21 +98,21 @@ def add_landscape(image_3d):
 
 def capture(image_3d, direction, length): 
     '''
+    NOTE: We simply use polynomial as theslit distortion and Gaussian as the RGB curve of camera
+     see https://i.stack.imgur.com/T74P0.jpg
     '''
     x_grid, y_grid, spec_grid = np.ogrid[:width, :height, :400]
     dx = np.cos(direction)
     dy = np.sin(direction)
-    x_offsets = x_grid - (np.arange(400)*dx*length/400)[np.newaxis, np.newaxis, :].astype(np.int16)
-    y_offsets = y_grid - (np.arange(400)*dy*length/400)[np.newaxis, np.newaxis, :].astype(np.int16)
+    x_offsets = x_grid - (np.linspace(0, 1, 400)**0.25*dx*length)[np.newaxis, np.newaxis, :].astype(np.int16)
+    y_offsets = y_grid - (np.linspace(0, 1, 400)**0.25*dy*length)[np.newaxis, np.newaxis, :].astype(np.int16)
     x_offsets[x_offsets>=width] -= width
     y_offsets[y_offsets>=height] -= height
     image_3d = image_3d[x_offsets, y_offsets, spec_grid]
     # RGB filter
-    # TODO: adjust the RGB curve of camera
-    # TODO: adjust the true slit distortion
-    gaussian_r = functional_models.Gaussian1D(mean=600, stddev=30)
-    gaussian_g = functional_models.Gaussian1D(mean=540, stddev=30)
-    gaussian_b = functional_models.Gaussian1D(mean=480, stddev=30)
+    gaussian_r = functional_models.Gaussian1D(mean=600, stddev=40)
+    gaussian_g = functional_models.Gaussian1D(mean=520, stddev=50)
+    gaussian_b = functional_models.Gaussian1D(mean=450, stddev=40)
     filter_r = gaussian_r(wavelengths.value)
     filter_g = gaussian_g(wavelengths.value)
     filter_b = gaussian_b(wavelengths.value)
