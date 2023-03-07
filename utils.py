@@ -77,7 +77,7 @@ def add_meteor(image_3d, coord_meteors, amp_meteors, T_meteors, dir_meteors, len
             x_plot = int(x + dx*i)
             y_plot = int(y + dy*i)
             # clip the point out of range
-            if radius< x_plot and x_plot< width-radius-1 and radius< y_plot and y_plot< height-radius-1: 
+            if (radius<x_plot and x_plot<width-radius-1 and radius<y_plot and y_plot<height-radius-1): 
                 xx = np.arange(-radius, radius+1)
                 yy = np.arange(-radius, radius+1)
                 XX, YY = np.meshgrid(xx, yy)
