@@ -307,8 +307,8 @@ def annotate_meteor(x_meteor, y_meteor, angle_slit, length_slit, angle_meteor, l
     }
 
 def annotate_star(x, y, angle_slit, length_slit, anno_id, image_id): 
-    start_star_x    = x
-    start_star_y    = y
+    start_star_x    = int(x + np.cos(angle_slit)*length_slit/2)
+    start_star_y    = int(y + np.sin(angle_slit)*length_slit/2)
     end_star_x      = int(x + np.cos(angle_slit)*length_slit)
     end_star_y      = int(y + np.sin(angle_slit)*length_slit)
     bbox_x1 = min(start_star_x, end_star_x)
