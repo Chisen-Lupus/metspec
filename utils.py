@@ -121,15 +121,27 @@ def capture(image_3d, direction, length):
     image_rgb = image_rgb.astype('uint16')
     return image_rgb
 
-def augmentation(image_rgb): 
+def add_landscape(image_rgb): 
     '''
-    Add the lens effect such as disortion and gaussian noise
+    TODO: 
+    '''
+    return image_rgb
+
+def add_lens_effect(image_rgb): 
+    '''
+    TODO: Add the lens effect such as disortion and gaussian noise
+    '''
+    return image_rgb
+
+def add_augmentation(image_rgb): 
+    '''
     TODO: use `imgaug`
     '''
     return image_rgb
 
 def generate_image(coord_stars, amp_stars, T_stars, coord_meteor, amp_meteor, T_meteor, 
-                    angle_meteor, length_meteor, angle_slit, length_slit): 
+                    angle_meteor, length_meteor, angle_slit, length_slit, 
+                    background = False, landscape = False, augmentation = False, lens_effect = False): 
     '''
     function to generate the image. 
     Args: 
@@ -144,15 +156,17 @@ def generate_image(coord_stars, amp_stars, T_stars, coord_meteor, amp_meteor, T_
         one RGB image
     '''
     image_3d = np.zeros([width, height, 400], dtype=np.uint16)           # 0-65536, valid in 0-256 TODO: change to float16? 
-    # print('  add_background')
-    image_3d = add_background(image_3d)
-    # print('  add_stars')
+    if background == True: 
+        image_3d = add_background(image_3d)
     image_3d = add_stars(image_3d, coord_stars, amp_stars, T_stars)
-    # print('  add_meteor')
     image_3d = add_meteor(image_3d, coord_meteor, amp_meteor, T_meteor, angle_meteor, length_meteor)
-    # print('  capture')
     image_rgb = capture(image_3d, angle_slit, length_slit)
-    image_rgb = augmentation(image_rgb)
+    if landscape == True: 
+        image_rgb = add_landscape(image_rgb)
+    if augmentation == True: 
+        image_rgb = add_augmentation(image_rgb)
+    if lens_effect == True: 
+        image_rgb = add_augmentation(image_rgb)
     # clip the image
     image_rgb = np.clip(image_rgb, 0, 255)# including 0 and 255
     # image_rgb = image_rgb.astype('uint8')
@@ -302,6 +316,25 @@ def annotate_star(x, y, angle_slit, length_slit, anno_id, image_id):
     else: 
         return None
     
+def annotate(labels, filename, image_id, coord_meteors, angle_meteors, length_meteors, 
+                angle_slit, length_slit, anno_id_shared, coord_stars): 
+    # label - image
+    label_image = annotate_image(filename, image_id)
+    labels['images'].append(label_image)
+    # label - annotation - meteor
+    for [x_meteor, y_meteor], angle_meteor, length_meteor in zip(coord_meteors, angle_meteors, length_meteors):
+        label_meteor = annotate_meteor(x_meteor, y_meteor, angle_slit, length_slit, angle_meteor, 
+                                                length_meteor, anno_id_shared.value, image_id)
+        labels['annotations'].append(label_meteor)
+        anno_id_shared.value += 1
+    # label - annotation - stars
+    for x, y in coord_stars: 
+        label_star = annotate_star(x, y, angle_slit, length_slit, anno_id_shared.value, image_id)
+        if label_star != None: 
+            labels['annotations'].append(label_star)
+            anno_id_shared.value += 1
+    return labels
+
 #%% photo normalization 
 
 def norm_linear(im): 
