@@ -99,16 +99,30 @@ def add_landscape(image_3d):
 def capture(image_3d, direction, length): 
     '''
     NOTE: We simply use polynomial as theslit distortion and Gaussian as the RGB curve of camera
-     see https://i.stack.imgur.com/T74P0.jpg
+    see https://i.stack.imgur.com/T74P0.jpg
     '''
-    x_grid, y_grid, spec_grid = np.ogrid[:width, :height, :400]
     dx = np.cos(direction)
     dy = np.sin(direction)
+    # add padding before offset
+    pad_x = int(dx*length)
+    pad_y = int(dy*length)
+    # image_3d = np.pad(image_3d, ((abs(pad_x), abs(pad_x)), (abs(pad_y), abs(pad_y)), (0, 0)), 'edge')
+    if pad_x<0 and pad_y<0: image_3d = np.pad(image_3d, ((-pad_x, 0), (-pad_y, 0), (0, 0)), 'edge')
+    if pad_x<0 and pad_y>=0: image_3d = np.pad(image_3d, ((-pad_x, 0), (0, pad_y), (0, 0)), 'edge')
+    if pad_x>=0 and pad_y<0: image_3d = np.pad(image_3d, ((0, pad_x), (-pad_y, 0), (0, 0)), 'edge')
+    if pad_x>=0 and pad_y>=0: image_3d = np.pad(image_3d, ((0, pad_x), (0, pad_y), (0, 0)), 'edge')
+    # perform offset
+    x_grid, y_grid, spec_grid = np.ogrid[:width+abs(pad_x), :height+abs(pad_y), :400]
     x_offsets = x_grid - (np.linspace(0, 1, 400)**0.25*dx*length)[np.newaxis, np.newaxis, :].astype(np.int16)
     y_offsets = y_grid - (np.linspace(0, 1, 400)**0.25*dy*length)[np.newaxis, np.newaxis, :].astype(np.int16)
-    x_offsets[x_offsets>=width] -= width
-    y_offsets[y_offsets>=height] -= height
+    x_offsets[x_offsets>=width] -= width+abs(pad_x)
+    y_offsets[y_offsets>=height] -= height+abs(pad_y)
     image_3d = image_3d[x_offsets, y_offsets, spec_grid]
+    # remove padding after offset
+    if pad_x<0 and pad_y<0: image_3d = image_3d[-pad_x:, -pad_y:, :]
+    if pad_x<0 and pad_y>0: image_3d = image_3d[-pad_x:, :-pad_y, :]
+    if pad_x>0 and pad_y<0: image_3d = image_3d[:-pad_x, -pad_y:, :]
+    if pad_x>0 and pad_y>0: image_3d = image_3d[:-pad_x, :-pad_y, :]
     # RGB filter
     gaussian_r = functional_models.Gaussian1D(mean=600, stddev=40)
     gaussian_g = functional_models.Gaussian1D(mean=520, stddev=50)
