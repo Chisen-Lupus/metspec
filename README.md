@@ -2,7 +2,7 @@
 
 This code performs the detection and photometry of slitless meteor spectra captured by DSLR. The goal is to recognize the track of bright stars and Na and Mg spectra and perform photometry on it. Below is a preliminary result at `51ad2d3`. Up to now, it can roughly recognize the position of meteors, and more adjustments are needed. 
 
-![image-20230308192508687](fig/image-20230308192508687.png)
+![image-20230308210751998](fig/image-20230308210751998.png)
 
 ## Docs
 
