@@ -47,10 +47,24 @@ def add_stars(image_3d, coord_stars, amp_stars, T_stars):
         image_3d[x-radius:x+radius+1,y-radius:y+radius+1,:] += star
     return image_3d
 
-def add_meteor(image_3d, coord_meteors, amp_meteors, T_meteors, dir_meteors, length_meteors): 
+def add_meteor(image_3d, coord_meteors, amp_meteors, T_meteors, dir_meteors, length_meteors, 
+                direction, length): 
     '''
     '''
     PSF = functional_models.Gaussian2D(x_stddev=FWHM, y_stddev=FWHM)
+
+    # pad image
+    dx = np.cos(direction)
+    dy = np.sin(direction)
+    # add padding before offset
+    pad_x = int(dx*length)
+    pad_y = int(dy*length)
+    image_3d = np.pad(image_3d, ((abs(pad_x), abs(pad_x)), (abs(pad_y), abs(pad_y)), (0, 0)), 'edge')
+    # if pad_x<0 and pad_y<0: image_3d = np.pad(image_3d, ((-pad_x, 0), (-pad_y, 0), (0, 0)), 'edge')
+    # if pad_x<0 and pad_y>=0: image_3d = np.pad(image_3d, ((-pad_x, 0), (0, pad_y), (0, 0)), 'edge')
+    # if pad_x>=0 and pad_y<0: image_3d = np.pad(image_3d, ((0, pad_x), (-pad_y, 0), (0, 0)), 'edge')
+    # if pad_x>=0 and pad_y>=0: image_3d = np.pad(image_3d, ((0, pad_x), (0, pad_y), (0, 0)), 'edge')
+    
     for [x, y], amp_meteor, T_meteor, dir_meteor, length_meteor in zip(coord_meteors, amp_meteors, T_meteors, dir_meteors, length_meteors):
         # spectrum - continuous spectrum
         BB = models.BlackBody(temperature=T_meteor)
@@ -74,10 +88,11 @@ def add_meteor(image_3d, coord_meteors, amp_meteors, T_meteors, dir_meteors, len
         dy = np.sin(dir_meteor)
         for i in range(length_meteor): 
             radius = int(5*FWHM)
-            x_plot = int(x + dx*i)
-            y_plot = int(y + dy*i)
+            x_plot = int(x + dx*i) + abs(pad_x)#*(pad_x<0)
+            y_plot = int(y + dy*i) + abs(pad_y)#*(pad_y<0)
             # clip the point out of range
-            if (radius<x_plot and x_plot<width-radius-1 and radius<y_plot and y_plot<height-radius-1): 
+            if (radius<x_plot and x_plot<width+abs(pad_x)-radius-1 and \
+                radius<y_plot and y_plot<height+abs(pad_y)-radius-1): 
                 xx = np.arange(-radius, radius+1)
                 yy = np.arange(-radius, radius+1)
                 XX, YY = np.meshgrid(xx, yy)
@@ -106,23 +121,26 @@ def capture(image_3d, direction, length):
     # add padding before offset
     pad_x = int(dx*length)
     pad_y = int(dy*length)
-    # image_3d = np.pad(image_3d, ((abs(pad_x), abs(pad_x)), (abs(pad_y), abs(pad_y)), (0, 0)), 'edge')
-    if pad_x<0 and pad_y<0: image_3d = np.pad(image_3d, ((-pad_x, 0), (-pad_y, 0), (0, 0)), 'edge')
-    if pad_x<0 and pad_y>=0: image_3d = np.pad(image_3d, ((-pad_x, 0), (0, pad_y), (0, 0)), 'edge')
-    if pad_x>=0 and pad_y<0: image_3d = np.pad(image_3d, ((0, pad_x), (-pad_y, 0), (0, 0)), 'edge')
-    if pad_x>=0 and pad_y>=0: image_3d = np.pad(image_3d, ((0, pad_x), (0, pad_y), (0, 0)), 'edge')
+    # # image_3d = np.pad(image_3d, ((abs(pad_x), abs(pad_x)), (abs(pad_y), abs(pad_y)), (0, 0)), 'edge')
+    # if pad_x<0 and pad_y<0: image_3d = np.pad(image_3d, ((-pad_x, 0), (-pad_y, 0), (0, 0)), 'edge')
+    # if pad_x<0 and pad_y>=0: image_3d = np.pad(image_3d, ((-pad_x, 0), (0, pad_y), (0, 0)), 'edge')
+    # if pad_x>=0 and pad_y<0: image_3d = np.pad(image_3d, ((0, pad_x), (-pad_y, 0), (0, 0)), 'edge')
+    # if pad_x>=0 and pad_y>=0: image_3d = np.pad(image_3d, ((0, pad_x), (0, pad_y), (0, 0)), 'edge')
     # perform offset
-    x_grid, y_grid, spec_grid = np.ogrid[:width+abs(pad_x), :height+abs(pad_y), :400]
+    x_grid, y_grid, spec_grid = np.ogrid[:width+2*abs(pad_x), :height+2*abs(pad_y), :400]
     x_offsets = x_grid - (np.linspace(0, 1, 400)**0.25*dx*length)[np.newaxis, np.newaxis, :].astype(np.int16)
     y_offsets = y_grid - (np.linspace(0, 1, 400)**0.25*dy*length)[np.newaxis, np.newaxis, :].astype(np.int16)
-    x_offsets[x_offsets>=width] -= width+abs(pad_x)
-    y_offsets[y_offsets>=height] -= height+abs(pad_y)
+    x_offsets[x_offsets>=width] -= width+2*abs(pad_x)
+    y_offsets[y_offsets>=height] -= height+2*abs(pad_y)
     image_3d = image_3d[x_offsets, y_offsets, spec_grid]
+
     # remove padding after offset
-    if pad_x<0 and pad_y<0: image_3d = image_3d[-pad_x:, -pad_y:, :]
-    if pad_x<0 and pad_y>0: image_3d = image_3d[-pad_x:, :-pad_y, :]
-    if pad_x>0 and pad_y<0: image_3d = image_3d[:-pad_x, -pad_y:, :]
-    if pad_x>0 and pad_y>0: image_3d = image_3d[:-pad_x, :-pad_y, :]
+    image_3d = image_3d[abs(pad_x):-abs(pad_x), abs(pad_y):-abs(pad_y), :]
+    # if pad_x<0 and pad_y<0: image_3d = image_3d[-pad_x:, -pad_y:, :]
+    # if pad_x<0 and pad_y>0: image_3d = image_3d[-pad_x:, :-pad_y, :]
+    # if pad_x>0 and pad_y<0: image_3d = image_3d[:-pad_x, -pad_y:, :]
+    # if pad_x>0 and pad_y>0: image_3d = image_3d[:-pad_x, :-pad_y, :]
+
     # RGB filter
     gaussian_r = functional_models.Gaussian1D(mean=600, stddev=40)
     gaussian_g = functional_models.Gaussian1D(mean=520, stddev=50)
@@ -177,7 +195,8 @@ def generate_image(coord_stars, amp_stars, T_stars, coord_meteor, amp_meteor, T_
     if background == True: 
         image_3d = add_background(image_3d)
     image_3d = add_stars(image_3d, coord_stars, amp_stars, T_stars)
-    image_3d = add_meteor(image_3d, coord_meteor, amp_meteor, T_meteor, angle_meteor, length_meteor)
+    image_3d = add_meteor(image_3d, coord_meteor, amp_meteor, T_meteor, angle_meteor, length_meteor, 
+                            angle_slit, length_slit)
     image_rgb = capture(image_3d, angle_slit, length_slit)
     if landscape == True: 
         image_rgb = add_landscape(image_rgb)
