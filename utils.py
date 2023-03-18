@@ -372,7 +372,7 @@ def annotate(labels, filename, image_id, coord_meteors, angle_meteors, length_me
             anno_id_shared.value += 1
     return labels
 
-#%% photo normalization 
+#%% photo modification 
 
 def norm_linear(im): 
     result = (im - np.median(im))# + np.std(im))
@@ -381,7 +381,65 @@ def norm_linear(im):
     result = result.astype(np.uint8)
     return result
 
+class ImgROI: 
 
+    def __init__(self, box, u, v, origin, ulength, vlength): 
+        '''
+        take 1000*1500 as scale
+        box:    [x1, y1, x2, y2]
+        vector: [x, y]
+        '''
+        self.box = box
+        self.origin = origin
+        self.ulength = ulength
+        self.vlength = vlength
+
+        x = np.array([1, 0])
+        y = np.array([0, 1])
+        u = u/np.sqrt(np.dot(u, u))
+        v = v/np.sqrt(np.dot(v, v))
+        self.T = np.array([
+            [np.dot(x, u) + np.cross(x, u)*np.dot(u, v)/np.cross(u, v), 
+             np.dot(y, u) + np.cross(y, u)*np.dot(u, v)/np.cross(u, v)],
+            [np.dot(x, v) - np.cross(x, v)*np.dot(u, v)/np.cross(u, v), 
+             np.dot(y, v) - np.cross(y, v)*np.dot(u, v)/np.cross(u, v)]])#/np.dot(v, u)**2 # (u, v) = T(x, y)
+
+    def img2roi(self, coord): 
+        '''
+        coord: [x, y]
+        '''
+        shape = coord.shape
+        size = coord.size
+        coord = coord.reshape(2, size//2)
+        result = np.matmul(self.T, coord.reshape(2, coord.size//2) - self.origin[:, np.newaxis])
+        result = result.reshape(shape)
+        return result
+
+    def roi2img(self, coord, origin=None): 
+        '''
+        coord: [u, v]
+        '''
+        if origin is None: origin = self.origin
+        shape = coord.shape
+        size = coord.size
+        coord = coord.reshape(2, size//2)
+        result = np.matmul(np.linalg.inv(self.T), coord) + origin[:, np.newaxis]
+        result = result.reshape(shape)
+        return result
+
+    def get_box(self, im): 
+        x0 = im.shape[0]
+        box_im = (self.box*1.*x0/width).astype(np.int16)
+        result = im[box_im[1]:box_im[3], box_im[0]:box_im[2]]
+        return result
+
+    def get_roi(self, im, dpi=[2000, 2000]): 
+        x0 = im.shape[0]
+        X, Y = np.meshgrid(np.linspace(0, self.ulength*x0/width, dpi[0]), np.linspace(0, self.vlength*x0/width, dpi[1]))
+        Z = np.array([X, Y])
+        coords_im = self.roi2img(Z, origin=self.origin*x0/width).astype(np.int16)
+        roi = im[coords_im[1], coords_im[0]].astype(np.uint8)
+        return roi
 
 
 
